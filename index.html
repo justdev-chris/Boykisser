@@ -55,9 +55,11 @@
             height: auto;
             display: block;
             pointer-events: none;
+            position: relative;
+            z-index: 1;
         }
 
-        /* hidden video overlay */
+        /* video overlay on top of cat */
         #memePlayer {
             position: absolute;
             top: 0;
@@ -68,6 +70,8 @@
             pointer-events: none;
             display: none;
             border-radius: 12px;
+            z-index: 2;
+            background: transparent;
         }
 
         audio {
@@ -253,22 +257,34 @@
             state.kisses += gain;
             updateUI();
 
-            // Play random clip + meow
-            const clip = clips[Math.floor(Math.random() * clips.length)];
+            // Play meow (always works)
             const meow = meows[Math.floor(Math.random() * meows.length)];
-
-            memePlayer.src = clip;
             meowPlayer.src = meow;
-            memePlayer.style.display = 'block';
-            memePlayer.play().catch(() => {});
             meowPlayer.play().catch(() => {});
 
-            // Hide video after 1.5s
-            clearTimeout(memePlayer._hideTimer);
-            memePlayer._hideTimer = setTimeout(() => {
+            // Play video clip (overlay)
+            const clip = clips[Math.floor(Math.random() * clips.length)];
+            memePlayer.src = clip;
+            memePlayer.style.display = 'block';
+            memePlayer.play().catch(() => {});
+
+            // Hide video after its duration (or fallback 2s)
+            const hideVideo = () => {
                 memePlayer.style.display = 'none';
                 memePlayer.pause();
-            }, 1500);
+            };
+            clearTimeout(memePlayer._hideTimer);
+            // Wait for metadata to get duration, fallback 2s
+            if (memePlayer.readyState >= 1) {
+                const duration = memePlayer.duration * 1000 || 2000;
+                memePlayer._hideTimer = setTimeout(hideVideo, duration);
+            } else {
+                memePlayer.addEventListener('loadedmetadata', () => {
+                    const duration = memePlayer.duration * 1000 || 2000;
+                    memePlayer._hideTimer = setTimeout(hideVideo, duration);
+                }, { once: true });
+                memePlayer._hideTimer = setTimeout(hideVideo, 2000);
+            }
 
             // Scale feedback
             catImage.style.transform = 'scale(0.9)';
