@@ -88,22 +88,6 @@
             'https://catsdevs.online/Boykisser/assets/sounds/meow2.mp3'
         ];
 
-        // ─── PRELOAD CLIPS ──────────────────────────────────────────
-        const clipBlobs = [];
-        let clipsReady = false;
-
-        async function preloadClips() {
-            const fetchPromises = clipUrls.map(async (url) => {
-                const resp = await fetch(url);
-                const blob = await resp.blob();
-                return URL.createObjectURL(blob);
-            });
-            const blobs = await Promise.all(fetchPromises);
-            clipBlobs.push(...blobs);
-            clipsReady = true;
-            console.log('✅ Clips preloaded');
-        }
-
         // ─── MEOW POOL (8 elements) ────────────────────────────────
         const meowPool = Array.from({ length: 8 }, (_, i) => {
             const audio = new Audio(meowUrls[i % meowUrls.length]);
@@ -122,11 +106,11 @@
 
         // ─── CLIP PLAYER ────────────────────────────────────────────
         const clipPlayer = document.getElementById('clipPlayer');
+        clipPlayer.preload = 'auto';
 
         function playClip() {
-            if (!clipsReady) return;
-            const url = clipBlobs[Math.floor(Math.random() * clipBlobs.length)];
-            clipPlayer.src = url;
+            const src = clipUrls[Math.floor(Math.random() * clipUrls.length)];
+            clipPlayer.src = src;
             clipPlayer.currentTime = 0;
             clipPlayer.style.display = 'block';
             clipPlayer.play().catch(() => {});
@@ -260,7 +244,6 @@
         });
 
         // ─── START ──────────────────────────────────────────────────
-        preloadClips();
         loadSave();
     </script>
 </body>
