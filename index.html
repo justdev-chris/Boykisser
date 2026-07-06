@@ -1,21 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-    if (window.location.search.includes('debug')) {
-        var script = document.createElement('script');
-        script.src = 'https://unpkg.com/vconsole@latest/dist/vconsole.min.js';
-        script.onload = function() {
-            var vConsole = new VConsole();
-        };
-        document.head.appendChild(script);
-    }
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Boykisser</title>
     <link rel="icon" href="https://catsdevs.online/Boykisser/assets/cat/default.png" type="image/png">
     <style>
+        /* --- all CSS unchanged (same as before) --- */
         * {
             margin: 0;
             padding: 0;
@@ -23,7 +14,6 @@
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
-
         body {
             background: #ffffff;
             display: flex;
@@ -35,13 +25,11 @@
             padding: 16px;
             touch-action: manipulation;
         }
-
         .container {
             text-align: center;
             max-width: 400px;
             width: 100%;
         }
-
         .kiss-counter {
             font-size: clamp(28px, 8vw, 48px);
             font-weight: 700;
@@ -49,7 +37,6 @@
             margin-bottom: 12px;
             pointer-events: none;
         }
-
         .cat-container {
             cursor: pointer;
             position: relative;
@@ -59,7 +46,6 @@
             margin: 0 auto;
             touch-action: manipulation;
         }
-
         .cat-image {
             width: 100%;
             height: auto;
@@ -68,23 +54,22 @@
             position: relative;
             z-index: 1;
         }
-
-        .clip-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            pointer-events: none;
+        /* fixed video overlay */
+        #clipPlayer {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 400px;
+            z-index: 999;
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
             display: none;
-            border-radius: 12px;
-            z-index: 2;
-            background: transparent;
+            pointer-events: none;
+            background: #000;
         }
-
         audio { display: none; }
-
         .upgrade-btn {
             margin-top: 12px;
             background: #e0e0e0;
@@ -98,9 +83,7 @@
             transition: 0.15s;
             touch-action: manipulation;
         }
-
         .upgrade-btn:hover { background: #d0d0d0; }
-
         .upgrade-list {
             margin-top: 12px;
             background: #f5f5f5;
@@ -110,7 +93,6 @@
             display: none;
             text-align: left;
         }
-
         .upgrade-item {
             display: flex;
             justify-content: space-between;
@@ -118,9 +100,7 @@
             padding: 6px 0;
             border-bottom: 1px solid #eee;
         }
-
         .upgrade-item:last-child { border-bottom: none; }
-
         .upgrade-name { color: #222; font-weight: 500; }
         .upgrade-cost { color: #666; font-size: 13px; }
         .upgrade-btn-small {
@@ -146,12 +126,15 @@
     </style>
 </head>
 <body>
+
     <div class="container">
         <div class="kiss-counter" id="kissCount">0</div>
 
         <div class="cat-container" id="clickArea">
             <img id="catImage" src="https://catsdevs.online/Boykisser/assets/cat/default.png" alt="Boykisser" class="cat-image">
         </div>
+
+        <video id="clipPlayer" muted playsinline></video>
 
         <button class="upgrade-btn" id="upgradesToggle">⬆ Upgrades</button>
 
@@ -176,6 +159,7 @@
     </div>
 
     <script>
+        // ─── STATE ──────────────────────────────────────────────────
         let state = {
             kisses: 0,
             kps: 0,
@@ -186,70 +170,44 @@
             blushCost: 50
         };
 
-        const clips = [
+        // ─── MEDIA URLs ─────────────────────────────────────────────
+        const clipUrls = [
             'https://catsdevs.online/Boykisser/assets/clips/kiss1.mp4',
             'https://catsdevs.online/Boykisser/assets/clips/kiss2.mp4',
             'https://catsdevs.online/Boykisser/assets/clips/kiss3.mp4',
             'https://catsdevs.online/Boykisser/assets/clips/kiss4.mp4',
             'https://catsdevs.online/Boykisser/assets/clips/kiss5.mp4'
         ];
-        const meows = [
+        const meowUrls = [
             'https://catsdevs.online/Boykisser/assets/sounds/meow1.mp3',
             'https://catsdevs.online/Boykisser/assets/sounds/meow2.mp3'
         ];
 
-        const meowPool = Array.from({ length: 5 }, () => {
-            const a = new Audio();
-            a.preload = "auto";
-            return a;
-        });
-        let meowIndex = 0;
+        // ─── PRELOAD CLIPS AS OBJECT URLS ──────────────────────────
+        let clipBlobs = [];
+        let clipsReady = false;
 
-        function playMeow() {
-            const el = meowPool[meowIndex % meowPool.length];
-            el.src = meows[Math.floor(Math.random() * meows.length)];
-            el.currentTime = 0;
-            el.play().catch(() => {});
-            meowIndex++;
+        async function preloadClips() {
+            const fetchPromises = clipUrls.map(async (url) => {
+                const resp = await fetch(url);
+                const blob = await resp.blob();
+                return URL.createObjectURL(blob);
+            });
+            clipBlobs = await Promise.all(fetchPromises);
+            clipsReady = true;
+            console.log('✅ Clips preloaded as object URLs');
         }
 
-        const clipPool = Array.from({ length: 5 }, () => {
-            const v = document.createElement('video');
-            v.playsInline = true;
-            v.preload = "auto";
-            v.className = 'clip-overlay';
-            return v;
+        // ─── PRELOAD MEOWS ──────────────────────────────────────────
+        const meowPool = meowUrls.map(src => {
+            const audio = new Audio(src);
+            audio.preload = 'auto';
+            audio.load();
+            return audio;
         });
-        let clipIndex = 0;
 
-        const catContainer = document.getElementById('clickArea');
-        clipPool.forEach(v => catContainer.appendChild(v));
-
-        function playClip() {
-            const el = clipPool[clipIndex % clipPool.length];
-            el.pause();
-            el.currentTime = 0;
-            const src = clips[Math.floor(Math.random() * clips.length)];
-            el.src = src;
-            el.load();
-
-            el.onloadeddata = () => {
-                el.style.display = 'block';
-                el.play().catch(() => {});
-            };
-
-            el.onerror = () => { el.style.display = 'none'; };
-
-            const hide = () => {
-                el.style.display = 'none';
-                el.pause();
-            };
-            el.onended = hide;
-            clearTimeout(el._hideTimer);
-            el._hideTimer = setTimeout(hide, 3000);
-            clipIndex++;
-        }
-
+        // ─── DOM REFS ──────────────────────────────────────────────
+        const clipPlayer = document.getElementById('clipPlayer');
         const kissCount = document.getElementById('kissCount');
         const catImage = document.getElementById('catImage');
         const clickArea = document.getElementById('clickArea');
@@ -264,8 +222,7 @@
         const upgradesToggle = document.getElementById('upgradesToggle');
         const upgradeList = document.getElementById('upgradeList');
 
-        let lastSave = Date.now();
-
+        // ─── UPDATE UI ──────────────────────────────────────────────
         function updateUI() {
             kissCount.textContent = Math.floor(state.kisses).toLocaleString();
             kpsDisplay.textContent = state.kps;
@@ -274,11 +231,7 @@
             upgradeKps.textContent = `+1 (${Math.floor(state.kissCost)})`;
             upgradeMulti.textContent = `+0.5x (${Math.floor(state.multiCost)})`;
             upgradeBlush.textContent = `+1 (${Math.floor(state.blushCost)})`;
-
-            if (Date.now() - lastSave > 3000) {
-                localStorage.setItem('boykisser_save', JSON.stringify(state));
-                lastSave = Date.now();
-            }
+            localStorage.setItem('boykisser_save', JSON.stringify(state));
         }
 
         function loadSave() {
@@ -291,6 +244,47 @@
             updateUI();
         }
 
+        // ─── PLAY MEOW ──────────────────────────────────────────────
+        let meowIndex = 0;
+        function playMeow() {
+            const audio = meowPool[meowIndex % meowPool.length];
+            audio.currentTime = 0;
+            audio.play().catch(() => console.log('meow error'));
+            meowIndex++;
+        }
+
+        // ─── PLAY CLIP ──────────────────────────────────────────────
+        function playClip() {
+            if (!clipsReady) {
+                console.warn('Clips not ready yet');
+                return;
+            }
+            const randomIndex = Math.floor(Math.random() * clipBlobs.length);
+            const objectUrl = clipBlobs[randomIndex];
+
+            // Set the src to the object URL (instant, no network)
+            clipPlayer.src = objectUrl;
+            clipPlayer.currentTime = 0;
+            clipPlayer.style.display = 'block';
+
+            // Play with catch
+            const playPromise = clipPlayer.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(err => console.error('Play error:', err));
+            }
+
+            // Clear any existing hide timer
+            clearTimeout(clipPlayer._hideTimer);
+            // Hide after 3 seconds (or when ended)
+            const hide = () => {
+                clipPlayer.style.display = 'none';
+                clipPlayer.pause();
+            };
+            clipPlayer.onended = hide;
+            clipPlayer._hideTimer = setTimeout(hide, 3000);
+        }
+
+        // ─── KISS ──────────────────────────────────────────────────
         function giveKiss(e) {
             e.preventDefault();
             const gain = 1 * state.multi + state.blush * 0.2;
@@ -304,6 +298,7 @@
             setTimeout(() => catImage.style.transform = 'scale(1)', 120);
         }
 
+        // ─── UPGRADES ──────────────────────────────────────────────
         function buyKps() {
             if (state.kisses < state.kissCost) return;
             state.kisses -= state.kissCost;
@@ -311,7 +306,6 @@
             state.kissCost = Math.floor(state.kissCost * 1.8);
             updateUI();
         }
-
         function buyMulti() {
             if (state.kisses < state.multiCost) return;
             state.kisses -= state.multiCost;
@@ -319,7 +313,6 @@
             state.multiCost = Math.floor(state.multiCost * 2.2);
             updateUI();
         }
-
         function buyBlush() {
             if (state.kisses < state.blushCost) return;
             state.kisses -= state.blushCost;
@@ -327,7 +320,6 @@
             state.blushCost = Math.floor(state.blushCost * 2.5);
             updateUI();
         }
-
         function resetGame() {
             if (confirm('Reset all your kisses?')) {
                 state.kisses = 0; state.kps = 0; state.multi = 1; state.blush = 0;
@@ -337,6 +329,7 @@
             }
         }
 
+        // ─── PASSIVE KISSES ────────────────────────────────────────
         setInterval(() => {
             if (state.kps > 0) {
                 state.kisses += state.kps * state.multi;
@@ -344,8 +337,12 @@
             }
         }, 1000);
 
+        // ─── EVENTS ────────────────────────────────────────────────
         clickArea.addEventListener('click', giveKiss);
-        clickArea.addEventListener('touchstart', (e) => { e.preventDefault(); giveKiss(e); }, { passive: false });
+        clickArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            giveKiss(e);
+        }, { passive: false });
 
         upgradeKps.addEventListener('click', buyKps);
         upgradeMulti.addEventListener('click', buyMulti);
@@ -358,14 +355,18 @@
             upgradesToggle.textContent = show ? '⬆ Upgrades' : '⬇ Upgrades';
         });
 
+        // ─── PREVENT ZOOM ──────────────────────────────────────────
         document.addEventListener('gesturestart', e => e.preventDefault());
         document.addEventListener('dblclick', e => e.preventDefault());
 
+        // ─── SAVE ON UNLOAD ────────────────────────────────────────
         window.addEventListener('beforeunload', () => {
             localStorage.setItem('boykisser_save', JSON.stringify(state));
         });
 
+        // ─── START ──────────────────────────────────────────────────
         loadSave();
+        preloadClips().then(() => console.log('Preload complete'));
     </script>
 </body>
 </html>
