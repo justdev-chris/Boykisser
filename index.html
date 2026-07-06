@@ -63,8 +63,7 @@
             z-index: 1;
         }
 
-        /* video overlay on top of cat */
-        #memePlayer {
+        .clip-overlay {
             position: absolute;
             top: 0;
             left: 0;
@@ -162,7 +161,6 @@
 
         <div class="cat-container" id="clickArea">
             <img id="catImage" src="assets/cat/default.png" alt="Boykisser" class="cat-image">
-            <video id="memePlayer" muted playsinline></video>
         </div>
 
         <button class="upgrade-btn" id="upgradesToggle">⬆ Upgrades</button>
@@ -199,7 +197,7 @@
             blushCost: 50
         };
 
-        // ─── PRELOAD MEDIA ──────────────────────────────────────────
+        // ─── MEDIA POOLS ──────────────────────────────────────────
         const clips = [
             'assets/clips/kiss1.mp4',
             'assets/clips/kiss2.mp4',
@@ -212,26 +210,56 @@
             'assets/sounds/meow2.mp3'
         ];
 
-        const meowElements = meows.map(src => {
-            const audio = new Audio(src);
-            audio.preload = 'auto';
-            return audio;
-        });
+        // Audio pool (5 elements)
+        const meowPool = Array.from({ length: 5 }, () => new Audio());
+        let meowIndex = 0;
 
-        const clipElements = clips.map(src => {
+        function playMeow() {
+            const el = meowPool[meowIndex % meowPool.length];
+            const src = meows[Math.floor(Math.random() * meows.length)];
+            el.src = src;
+            el.currentTime = 0;
+            el.play().catch(() => {});
+            meowIndex++;
+        }
+
+        // Video pool (5 elements)
+        const clipPool = Array.from({ length: 5 }, () => {
             const video = document.createElement('video');
-            video.src = src;
-            video.preload = 'auto';
             video.muted = true;
             video.playsInline = true;
+            video.preload = 'auto';
+            video.className = 'clip-overlay';
             return video;
         });
+        let clipIndex = 0;
+
+        // Inject clip overlays into cat-container
+        const catContainer = document.getElementById('clickArea');
+        clipPool.forEach(v => catContainer.appendChild(v));
+
+        function playClip() {
+            const el = clipPool[clipIndex % clipPool.length];
+            const src = clips[Math.floor(Math.random() * clips.length)];
+            el.src = src;
+            el.currentTime = 0;
+            el.style.display = 'block';
+            el.play().catch(() => {});
+            
+            const hide = () => {
+                el.style.display = 'none';
+                el.pause();
+            };
+            el.onended = hide;
+            clearTimeout(el._hideTimer);
+            el._hideTimer = setTimeout(hide, 2000);
+            clipIndex++;
+        }
 
         // ─── DOM REFS ──────────────────────────────────────────────
         const kissCount = document.getElementById('kissCount');
         const catImage = document.getElementById('catImage');
         const clickArea = document.getElementById('clickArea');
-        const memePlayer = document.getElementById('memePlayer');
 
         const kpsDisplay = document.getElementById('kpsDisplay');
         const multiDisplay = document.getElementById('multiDisplay');
@@ -269,32 +297,13 @@
         // ─── KISS ──────────────────────────────────────────────────
         function giveKiss(e) {
             e.preventDefault();
-
             const gain = 1 * state.multi + state.blush * 0.2;
             state.kisses += gain;
             updateUI();
 
-            // Play random meow (preloaded)
-            const meow = meowElements[Math.floor(Math.random() * meowElements.length)];
-            meow.currentTime = 0;
-            meow.play().catch(() => {});
+            playMeow();
+            playClip();
 
-            // Play random clip (preloaded)
-            const clip = clipElements[Math.floor(Math.random() * clipElements.length)];
-            clip.currentTime = 0;
-            clip.style.display = 'block';
-            clip.play().catch(() => {});
-
-            // Hide clip after 2 seconds or when it ends
-            const hideClip = () => {
-                clip.style.display = 'none';
-                clip.pause();
-            };
-            clip.onended = hideClip;
-            clearTimeout(clip._hideTimer);
-            clip._hideTimer = setTimeout(hideClip, 2000);
-
-            // Scale feedback
             catImage.style.transform = 'scale(0.9)';
             setTimeout(() => catImage.style.transform = 'scale(1)', 150);
         }
