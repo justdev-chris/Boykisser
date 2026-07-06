@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Boykisser</title>
+    <link rel="icon" href="assets/cat/default.png" type="image/png">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div class="container">
+        <div class="cat-container" id="clickArea">
+            <img id="catImage" src="assets/cat/default.png" alt="Boykisser" class="cat-image">
+        </div>
+
+        <div class="kiss-counter">
+            <span id="kissCount">0</span>
+        </div>
+
+        <button class="btn" id="upgradesToggle">⬆ Upgrades</button>
+
+        <div class="upgrade-list" id="upgradeList" style="display:none;">
+            <div class="upgrade-item">
+                <span class="upgrade-name">Kisses per second</span>
+                <span class="upgrade-cost" id="kpsDisplay">0</span>
+                <button class="upgrade-btn" id="upgradeKps">+1</button>
+            </div>
+            <div class="upgrade-item">
+                <span class="upgrade-name">Multiplier per kiss</span>
+                <span class="upgrade-cost" id="multiDisplay">1x</span>
+                <button class="upgrade-btn" id="upgradeMulti">+0.5x</button>
+            </div>
+            <div class="upgrade-item">
+                <span class="upgrade-name">Blush power</span>
+                <span class="upgrade-cost" id="blushDisplay">0</span>
+                <button class="upgrade-btn" id="upgradeBlush">+1</button>
+            </div>
+            <div style="margin-top:12px; text-align:center;">
+                <button class="reset-btn" id="resetBtn">↺ reset</button>
+            </div>
+        </div>
+    </div>
+
+    <video id="memePlayer" style="display:none;"></video>
+    <audio id="meowPlayer" style="display:none;"></audio>
+
+    <script src="js/media.js"></script>
+    <script src="js/upgrades.js"></script>
+    <script src="js/achievements.js"></script>
+    <script src="js/catMoods.js"></script>
+    <script src="js/save.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
