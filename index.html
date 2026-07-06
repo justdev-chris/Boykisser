@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Boykisser</title>
     <link rel="icon" href="assets/cat/default.png" type="image/png">
     <style>
@@ -11,6 +11,7 @@
             padding: 0;
             box-sizing: border-box;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -22,36 +23,55 @@
             font-family: 'Segoe UI', system-ui, sans-serif;
             margin: 0;
             padding: 16px;
+            touch-action: manipulation;
         }
 
         .container {
             text-align: center;
-            position: relative;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .kiss-counter {
+            font-size: 36px;
+            font-weight: 700;
+            color: #000000;
+            margin-bottom: 12px;
+            pointer-events: none;
         }
 
         .cat-container {
             cursor: pointer;
             position: relative;
             display: inline-block;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+            touch-action: manipulation;
         }
 
         .cat-image {
-            width: 200px;
-            height: 200px;
-            object-fit: contain;
+            width: 100%;
+            height: auto;
             display: block;
+            pointer-events: none;
         }
 
-        .kiss-counter {
+        /* hidden video overlay */
+        #memePlayer {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #000000;
-            font-size: 32px;
-            font-weight: 700;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
             pointer-events: none;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.9);
+            display: none;
+            border-radius: 12px;
+        }
+
+        audio {
+            display: none;
         }
 
         .upgrade-btn {
@@ -65,6 +85,7 @@
             color: #222;
             cursor: pointer;
             transition: 0.15s;
+            touch-action: manipulation;
         }
 
         .upgrade-btn:hover {
@@ -108,6 +129,7 @@
             border-radius: 20px;
             font-size: 12px;
             cursor: pointer;
+            touch-action: manipulation;
         }
         .upgrade-btn-small:hover {
             background: #d0d0d0;
@@ -119,32 +141,19 @@
             font-size: 12px;
             cursor: pointer;
             margin-top: 8px;
+            touch-action: manipulation;
         }
         .reset-btn:hover {
             color: #222;
-        }
-
-        /* hidden video player */
-        #memePlayer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            pointer-events: none;
-            display: none;
-        }
-        audio {
-            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="kiss-counter" id="kissCount">0</div>
+
         <div class="cat-container" id="clickArea">
             <img id="catImage" src="assets/cat/default.png" alt="Boykisser" class="cat-image">
-            <div class="kiss-counter" id="kissCount">0</div>
             <video id="memePlayer" muted playsinline></video>
         </div>
 
@@ -237,7 +246,9 @@
         }
 
         // ─── KISS ──────────────────────────────────────────────────
-        function giveKiss() {
+        function giveKiss(e) {
+            e.preventDefault();
+
             const gain = 1 * state.multi + state.blush * 0.2;
             state.kisses += gain;
             updateUI();
@@ -312,6 +323,11 @@
 
         // ─── EVENTS ────────────────────────────────────────────────
         clickArea.addEventListener('click', giveKiss);
+        clickArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            giveKiss(e);
+        }, { passive: false });
+
         upgradeKps.addEventListener('click', buyKps);
         upgradeMulti.addEventListener('click', buyMulti);
         upgradeBlush.addEventListener('click', buyBlush);
@@ -322,6 +338,10 @@
             upgradeList.style.display = show ? 'none' : 'block';
             upgradesToggle.textContent = show ? '⬆ Upgrades' : '⬇ Upgrades';
         });
+
+        // ─── PREVENT ZOOM ──────────────────────────────────────────
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('dblclick', (e) => e.preventDefault());
 
         // ─── START ──────────────────────────────────────────────────
         loadSave();
