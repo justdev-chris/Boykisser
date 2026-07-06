@@ -6,9 +6,6 @@
     <title>Boykisser</title>
     <link rel="icon" href="assets/cat/default.png" type="image/png">
     <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
-    <script>
-        var vConsole = new VConsole();
-    </script>
     <style>
         * {
             margin: 0;
@@ -37,7 +34,7 @@
         }
 
         .kiss-counter {
-            font-size: 36px;
+            font-size: clamp(28px, 8vw, 48px);
             font-weight: 700;
             color: #000000;
             margin-bottom: 12px;
@@ -186,6 +183,11 @@
     </div>
 
     <script>
+        // ─── DEBUG ──────────────────────────────────────────────────
+        if (new URLSearchParams(window.location.search).has('debug')) {
+            new VConsole();
+        }
+
         // ─── STATE ──────────────────────────────────────────────────
         let state = {
             kisses: 0,
@@ -210,7 +212,7 @@
             'assets/sounds/meow2.mp3'
         ];
 
-        // Audio pool (5 elements)
+        // Audio pool
         const meowPool = Array.from({ length: 5 }, () => new Audio());
         let meowIndex = 0;
 
@@ -223,10 +225,9 @@
             meowIndex++;
         }
 
-        // Video pool (5 elements)
+        // Video pool (UNMUTED)
         const clipPool = Array.from({ length: 5 }, () => {
             const video = document.createElement('video');
-            video.muted = true;
             video.playsInline = true;
             video.preload = 'auto';
             video.className = 'clip-overlay';
@@ -234,15 +235,15 @@
         });
         let clipIndex = 0;
 
-        // Inject clip overlays into cat-container
         const catContainer = document.getElementById('clickArea');
         clipPool.forEach(v => catContainer.appendChild(v));
 
         function playClip() {
             const el = clipPool[clipIndex % clipPool.length];
+            el.pause();
+            el.currentTime = 0;
             const src = clips[Math.floor(Math.random() * clips.length)];
             el.src = src;
-            el.currentTime = 0;
             el.style.display = 'block';
             el.play().catch(() => {});
             
@@ -271,16 +272,22 @@
         const upgradesToggle = document.getElementById('upgradesToggle');
         const upgradeList = document.getElementById('upgradeList');
 
+        let lastSave = Date.now();
+
         // ─── UPDATE UI ──────────────────────────────────────────────
         function updateUI() {
-            kissCount.textContent = Math.floor(state.kisses);
+            kissCount.textContent = Math.floor(state.kisses).toLocaleString();
             kpsDisplay.textContent = state.kps;
-            multiDisplay.textContent = state.multi + 'x';
+            multiDisplay.textContent = state.multi.toFixed(1) + 'x';
             blushDisplay.textContent = state.blush;
             upgradeKps.textContent = `+1 (${Math.floor(state.kissCost)})`;
             upgradeMulti.textContent = `+0.5x (${Math.floor(state.multiCost)})`;
             upgradeBlush.textContent = `+1 (${Math.floor(state.blushCost)})`;
-            localStorage.setItem('boykisser_save', JSON.stringify(state));
+
+            if (Date.now() - lastSave > 5000) {
+                localStorage.setItem('boykisser_save', JSON.stringify(state));
+                lastSave = Date.now();
+            }
         }
 
         function loadSave() {
@@ -343,13 +350,15 @@
                 state.multiCost = 30;
                 state.blushCost = 50;
                 updateUI();
+                localStorage.removeItem('boykisser_save');
             }
         }
 
-        // ─── PASSIVE ──────────────────────────────────────────────
+        // ─── PASSIVE (now with multiplier) ──────────────────────────────────────────────
         setInterval(() => {
             if (state.kps > 0) {
-                state.kisses += state.kps;
+                const passiveGain = state.kps * state.multi;
+                state.kisses += passiveGain;
                 updateUI();
             }
         }, 1000);
@@ -375,6 +384,11 @@
         // ─── PREVENT ZOOM ──────────────────────────────────────────
         document.addEventListener('gesturestart', (e) => e.preventDefault());
         document.addEventListener('dblclick', (e) => e.preventDefault());
+
+        // Final save on leave
+        window.addEventListener('beforeunload', () => {
+            localStorage.setItem('boykisser_save', JSON.stringify(state));
+        });
 
         // ─── START ──────────────────────────────────────────────────
         loadSave();
