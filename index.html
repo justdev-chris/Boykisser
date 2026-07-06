@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
-<script>
-    var vConsole = new VConsole();
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Boykisser</title>
     <link rel="icon" href="assets/cat/default.png" type="image/png">
+    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+    <script>
+        var vConsole = new VConsole();
+    </script>
     <style>
         * {
             margin: 0;
@@ -187,8 +187,6 @@
         </div>
     </div>
 
-    <audio id="meowPlayer"></audio>
-
     <script>
         // ─── STATE ──────────────────────────────────────────────────
         let state = {
@@ -201,6 +199,7 @@
             blushCost: 50
         };
 
+        // ─── PRELOAD MEDIA ──────────────────────────────────────────
         const clips = [
             'assets/clips/kiss1.mp4',
             'assets/clips/kiss2.mp4',
@@ -213,12 +212,26 @@
             'assets/sounds/meow2.mp3'
         ];
 
+        const meowElements = meows.map(src => {
+            const audio = new Audio(src);
+            audio.preload = 'auto';
+            return audio;
+        });
+
+        const clipElements = clips.map(src => {
+            const video = document.createElement('video');
+            video.src = src;
+            video.preload = 'auto';
+            video.muted = true;
+            video.playsInline = true;
+            return video;
+        });
+
         // ─── DOM REFS ──────────────────────────────────────────────
         const kissCount = document.getElementById('kissCount');
         const catImage = document.getElementById('catImage');
         const clickArea = document.getElementById('clickArea');
         const memePlayer = document.getElementById('memePlayer');
-        const meowPlayer = document.getElementById('meowPlayer');
 
         const kpsDisplay = document.getElementById('kpsDisplay');
         const multiDisplay = document.getElementById('multiDisplay');
@@ -261,34 +274,25 @@
             state.kisses += gain;
             updateUI();
 
-            // Play meow (always works)
-            const meow = meows[Math.floor(Math.random() * meows.length)];
-            meowPlayer.src = meow;
-            meowPlayer.play().catch(() => {});
+            // Play random meow (preloaded)
+            const meow = meowElements[Math.floor(Math.random() * meowElements.length)];
+            meow.currentTime = 0;
+            meow.play().catch(() => {});
 
-            // Play video clip (overlay)
-            const clip = clips[Math.floor(Math.random() * clips.length)];
-            memePlayer.src = clip;
-            memePlayer.style.display = 'block';
-            memePlayer.play().catch(() => {});
+            // Play random clip (preloaded)
+            const clip = clipElements[Math.floor(Math.random() * clipElements.length)];
+            clip.currentTime = 0;
+            clip.style.display = 'block';
+            clip.play().catch(() => {});
 
-            // Hide video after its duration (or fallback 2s)
-            const hideVideo = () => {
-                memePlayer.style.display = 'none';
-                memePlayer.pause();
+            // Hide clip after 2 seconds or when it ends
+            const hideClip = () => {
+                clip.style.display = 'none';
+                clip.pause();
             };
-            clearTimeout(memePlayer._hideTimer);
-            // Wait for metadata to get duration, fallback 2s
-            if (memePlayer.readyState >= 1) {
-                const duration = memePlayer.duration * 1000 || 2000;
-                memePlayer._hideTimer = setTimeout(hideVideo, duration);
-            } else {
-                memePlayer.addEventListener('loadedmetadata', () => {
-                    const duration = memePlayer.duration * 1000 || 2000;
-                    memePlayer._hideTimer = setTimeout(hideVideo, duration);
-                }, { once: true });
-                memePlayer._hideTimer = setTimeout(hideVideo, 2000);
-            }
+            clip.onended = hideClip;
+            clearTimeout(clip._hideTimer);
+            clip._hideTimer = setTimeout(hideClip, 2000);
 
             // Scale feedback
             catImage.style.transform = 'scale(0.9)';
